@@ -19,3 +19,8 @@ dependencies:
     - matplotlib
     - azure-ai-ml==1.19.0
     - dotenv==0.9.9
+    - itsdangerous<2.1
+    - werkzeug<3.0
+    - azureml-inference-server-http
+    - flask<2.3
+    - jinja2<3.1

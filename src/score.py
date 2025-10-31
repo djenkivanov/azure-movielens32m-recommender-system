@@ -20,18 +20,24 @@ def init():
     
 
 def recommend_movie_to_user(user_id, top_k=10):
-    liked = [i for i in liked_by_users[user_id]]
+    user_id_enc = user_enc.transform([[user_id]]).astype(np.int64)[0, 0]
+    
+    liked = [i for i in liked_by_users[user_id_enc]]
     
     scores = np.zeros(len(movie_indices), dtype=np.float32)
     neighbors = movie_indices[liked].ravel()
     weights = movie_similarities[liked].ravel()
     np.add.at(scores, neighbors, weights)
     
-    scores[list(seen_by_user[user_id])] = -np.inf
+    scores[list(seen_by_user[user_id_enc])] = -np.inf
     
     top = np.argpartition(scores, -top_k)[-top_k:]
-    recommended_indices = top[np.argsort(-scores[top])]
-    return movies.iloc[recommended_indices][['movieId', 'title']].to_dict(orient='records')
+    rec_idxs_enc = top[np.argsort(-scores[top])]
+    
+    rec_idxs_raw = movie_enc.inverse_transform(rec_idxs_enc.reshape(-1, 1)).ravel()
+    
+    recs = movies[movies['movieId'].isin(rec_idxs_raw)][['movieId', 'title', 'genres']]
+    return recs.to_dict(orient='records')
 
 
 def run(raw_data):

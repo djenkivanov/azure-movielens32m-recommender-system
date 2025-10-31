@@ -4,15 +4,9 @@ from scipy.sparse import csr_matrix
 from sklearn.preprocessing import OrdinalEncoder, normalize
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-from azure.identity import DefaultAzureCredential
 import argparse
 import mlflow
-import mlflow.sklearn
-from azure.ai.ml import MLClient
-from dotenv import load_dotenv
-import os
-import joblib, scipy.sparse as sp
+import joblib
 from pathlib import Path
 
 
@@ -29,7 +23,7 @@ def main():
         
         top = np.argpartition(scores, -top_k)[-top_k:]
         recommended_indices = top[np.argsort(-scores[top])]
-        return movies.iloc[recommended_indices][['movieId', 'title']].to_dict(orient='records')
+        return recommended_indices
     
     def evaluate(k):
         users_evaluated = 0
@@ -43,7 +37,6 @@ def main():
         
         for u in users:
             liked_movies = liked_by_users[u]
-            print(f'Users evaluated: {users_evaluated}/{len(sample_users)}')
             recs = get_recommendations_for_user(u, top_k=k)
             if not recs.any():
                 continue
@@ -163,12 +156,9 @@ def main():
     sample_mask = (h % 1000) == 0
     sample_users = set(all_eval_users[sample_mask])
     
-    recs = get_recommendations_for_user(user_id_enc=100, top_k=10)
-    print(recs)
+    eval_results = evaluate(k=10)
     
-    # eval_results = evaluate(k=10)
-    
-    # mlflow.log_metrics(eval_results)
+    mlflow.log_metrics(eval_results)
     
     artifact_dir = Path("artifacts")
     artifact_dir.mkdir(exist_ok=True)
@@ -177,7 +167,7 @@ def main():
     joblib.dump(movie_encoder, artifact_dir / "movie_encoder.pkl")
     joblib.dump(seen_by_user, artifact_dir / "seen_by_user.pkl")
     joblib.dump(liked_by_users, artifact_dir / "liked_by_users.pkl")
-    np.save(artifact_dir / "movie_knn_indices.npy", indcices.astype(np.int32))
+    np.save(artifact_dir / "movie_knn_indices.npy", indices.astype(np.int32))
     np.save(artifact_dir / "movie_knn_similarities.npy", sims.astype(np.float32))
     movies.to_parquet(artifact_dir / "movies.parquet", index=False)
     
